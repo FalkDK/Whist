@@ -54,3 +54,34 @@ trick = Trick()
 card = deal.hand_for("North")[0]
 deal.play_card("North", card, trick)
 ```
+
+## Phase 4: Round turn order
+
+Phase four introduces a round helper that manages turn order across tricks.
+
+```python
+from whist import Round, Suit
+
+players = ["North", "East", "South", "West"]
+round_state = Round(players, trump=Suit.HEARTS)
+
+player = round_state.expected_player()
+card = round_state.deal.hand_for(player)[0]
+winner = round_state.play(player, card)
+```
+
+## Phase 5: Full game flow
+
+Phase five adds a `Game` helper that plays through a full deal and reports the
+final partnership score once all tricks are complete.
+
+```python
+from whist import Game, Suit
+
+players = ["North", "East", "South", "West"]
+game = Game(players, trump=Suit.SPADES)
+
+player = game.expected_player()
+card = game.round.deal.hand_for(player)[0]
+game.play(player, card)
+```

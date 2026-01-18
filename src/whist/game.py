@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from .cards import Card
+from .cards import Card, Suit
 from .deck import Deck
 from .scoring import Scoreboard
+from .trick import Trick
 
 
 @dataclass
@@ -38,3 +39,18 @@ class Deal:
         if player not in self.hands:
             raise ValueError("player must be part of the deal")
         return list(self.hands[player])
+
+    def play_card(self, player: str, card: Card, trick: Trick) -> None:
+        """Play a card into a trick, enforcing follow-suit when possible."""
+
+        if player not in self.hands:
+            raise ValueError("player must be part of the deal")
+        hand = self.hands[player]
+        if card not in hand:
+            raise ValueError("card must be in the player's hand")
+        lead_suit = trick.lead_suit()
+        if lead_suit is not None and card.suit != lead_suit:
+            if any(hand_card.suit == lead_suit for hand_card in hand):
+                raise ValueError("must follow suit if possible")
+        hand.remove(card)
+        trick.add_play(player, card)

@@ -32,6 +32,28 @@ class Rank(str, Enum):
     KING = "K"
     ACE = "A"
 
+    @classmethod
+    def ordered(cls) -> list["Rank"]:
+        return [
+            cls.TWO,
+            cls.THREE,
+            cls.FOUR,
+            cls.FIVE,
+            cls.SIX,
+            cls.SEVEN,
+            cls.EIGHT,
+            cls.NINE,
+            cls.TEN,
+            cls.JACK,
+            cls.QUEEN,
+            cls.KING,
+            cls.ACE,
+        ]
+
+    @classmethod
+    def strength(cls, rank: "Rank") -> int:
+        return cls.ordered().index(rank)
+
 
 @dataclass(frozen=True)
 class Card:

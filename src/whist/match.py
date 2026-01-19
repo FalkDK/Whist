@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 
 from .cards import Card, Suit
@@ -27,6 +28,9 @@ class Game:
 
     def play_trick(self, plays: dict[str, Card]) -> str:
         return self.round.play_trick(plays)
+
+    def play_auto(self, rng: random.Random | None = None) -> str | None:
+        return self.round.play_auto(rng)
 
     def is_complete(self) -> bool:
         return self.round.is_complete()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 
 from .cards import Card, Suit
@@ -71,6 +72,16 @@ class Round:
         if winner is None:
             raise ValueError("trick did not complete with a winner")
         return winner
+
+    def play_auto(self, rng: random.Random | None = None) -> str | None:
+        """Play a legal card at random for the expected player."""
+
+        player = self.expected_player()
+        legal = self.deal.legal_moves(player, self.current_trick)
+        if not legal:
+            raise ValueError("no legal moves available")
+        card = (rng or random).choice(legal)
+        return self.play(player, card)
 
     def is_complete(self) -> bool:
         return len(self.completed_tricks) >= TRICKS_PER_DEAL

@@ -145,3 +145,15 @@ players = ["North", "East", "South", "West"]
 game = Game(players)
 print(game.state())
 ```
+
+## Phase 10: Automated play
+
+Phase ten adds a helper to play a legal card at random for the next player.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+game.play_auto()
+```

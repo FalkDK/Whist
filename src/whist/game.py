@@ -70,3 +70,15 @@ class Deal:
                 raise ValueError("must follow suit if possible")
         hand.remove(card)
         trick.add_play(player, card)
+
+    def legal_moves(self, player: str, trick: Trick) -> list[Card]:
+        """Return the legal cards a player may play for the given trick."""
+
+        if player not in self.hands:
+            raise ValueError("player must be part of the deal")
+        hand = list(self.hands[player])
+        lead_suit = trick.lead_suit()
+        if lead_suit is None:
+            return hand
+        suited_cards = [card for card in hand if card.suit == lead_suit]
+        return suited_cards if suited_cards else hand

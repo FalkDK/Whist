@@ -85,3 +85,19 @@ player = game.expected_player()
 card = game.round.deal.hand_for(player)[0]
 game.play(player, card)
 ```
+
+## Phase 6: Match scoring
+
+Phase six adds a match helper to aggregate scores across multiple deals.
+
+```python
+from whist import Match, Suit
+
+players = ["North", "East", "South", "West"]
+match = Match(players)
+
+game = match.start_game(trump=Suit.CLUBS)
+player = game.expected_player()
+card = game.round.deal.hand_for(player)[0]
+game.play(player, card)
+```

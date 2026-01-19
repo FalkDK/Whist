@@ -133,3 +133,15 @@ plays = {
 }
 winner = game.play_trick(plays)
 ```
+
+## Phase 9: Round state reporting
+
+Phase nine adds a round state snapshot for UI or logging.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+print(game.state())
+```

@@ -35,3 +35,6 @@ class Game:
         if not self.is_complete():
             raise ValueError("game is not complete")
         return self.round.score()
+
+    def state(self) -> dict[str, object]:
+        return self.round.state()

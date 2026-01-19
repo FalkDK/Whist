@@ -77,3 +77,14 @@ class Round:
 
     def score(self) -> dict[str, int]:
         return self.deal.partnership_points()
+
+    def state(self) -> dict[str, object]:
+        """Return a snapshot of round progress for UI or logging."""
+
+        return {
+            "leader": self._leader,
+            "next_player": self.expected_player(),
+            "tricks_played": len(self.completed_tricks),
+            "tricks_remaining": TRICKS_PER_DEAL - len(self.completed_tricks),
+            "trump": self.trump,
+        }

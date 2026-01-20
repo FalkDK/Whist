@@ -45,3 +45,6 @@ class Game:
 
     def state(self) -> dict[str, object]:
         return self.round.state()
+
+    def trick_history(self) -> list[dict[str, object]]:
+        return self.round.trick_history()

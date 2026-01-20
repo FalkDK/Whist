@@ -41,3 +41,8 @@ class Trick:
             key=lambda play: Rank.strength(play[1].rank),
         )
         return winner_player
+
+    def summary(self) -> list[tuple[str, str]]:
+        """Return a list of (player, card_label) for the trick."""
+
+        return [(player, card.label()) for player, card in self.plays]

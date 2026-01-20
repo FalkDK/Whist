@@ -170,3 +170,16 @@ game = Game(players)
 game.play_out()
 print(game.score())
 ```
+
+## Phase 12: Trick history
+
+Phase twelve exposes completed trick summaries for reporting.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+game.play_out()
+print(game.trick_history())
+```

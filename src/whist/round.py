@@ -105,3 +105,11 @@ class Round:
             "tricks_remaining": TRICKS_PER_DEAL - len(self.completed_tricks),
             "trump": self.trump,
         }
+
+    def trick_history(self) -> list[dict[str, object]]:
+        """Return summaries of completed tricks."""
+
+        return [
+            {"winner": trick.winner(self.trump), "plays": trick.summary()}
+            for trick in self.completed_tricks
+        ]

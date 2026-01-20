@@ -157,3 +157,16 @@ players = ["North", "East", "South", "West"]
 game = Game(players)
 game.play_auto()
 ```
+
+## Phase 11: Auto-play a full deal
+
+Phase eleven adds a helper to auto-play the remaining tricks in a deal.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+game.play_out()
+print(game.score())
+```

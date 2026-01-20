@@ -32,6 +32,9 @@ class Game:
     def play_auto(self, rng: random.Random | None = None) -> str | None:
         return self.round.play_auto(rng)
 
+    def play_out(self, rng: random.Random | None = None) -> None:
+        self.round.play_out(rng)
+
     def is_complete(self) -> bool:
         return self.round.is_complete()
 

@@ -83,6 +83,12 @@ class Round:
         card = (rng or random).choice(legal)
         return self.play(player, card)
 
+    def play_out(self, rng: random.Random | None = None) -> None:
+        """Play out the remainder of the round automatically."""
+
+        while not self.is_complete():
+            self.play_auto(rng)
+
     def is_complete(self) -> bool:
         return len(self.completed_tricks) >= TRICKS_PER_DEAL
 

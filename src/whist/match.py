@@ -1,0 +1,56 @@
+"""High-level game loop for a single Whist deal."""
+
+from __future__ import annotations
+
+import random
+from dataclasses import dataclass, field
+
+from .cards import Card, Suit
+from .round import Round
+
+
+@dataclass
+class Game:
+    """Coordinates a single Whist deal from first lead to final score."""
+
+    players: list[str]
+    trump: Suit | None = None
+    round: Round = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.round = Round(self.players, trump=self.trump)
+
+    def expected_player(self) -> str:
+        return self.round.expected_player()
+
+    def play(self, player: str, card: Card) -> str | None:
+        return self.round.play(player, card)
+
+    def play_trick(self, plays: dict[str, Card]) -> str:
+        return self.round.play_trick(plays)
+
+    def play_auto(self, rng: random.Random | None = None) -> str | None:
+        return self.round.play_auto(rng)
+
+    def play_out(self, rng: random.Random | None = None) -> None:
+        self.round.play_out(rng)
+
+    def is_complete(self) -> bool:
+        return self.round.is_complete()
+
+    def score(self) -> dict[str, int]:
+        if not self.is_complete():
+            raise ValueError("game is not complete")
+        return self.round.score()
+
+    def trick_counts(self) -> dict[str, int]:
+        return self.round.trick_counts()
+
+    def state(self) -> dict[str, object]:
+        return self.round.state()
+
+    def trick_history(self) -> list[dict[str, object]]:
+        return self.round.trick_history()
+
+    def display_history(self) -> list[str]:
+        return self.round.display_history()

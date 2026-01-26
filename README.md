@@ -101,3 +101,111 @@ player = game.expected_player()
 card = game.round.deal.hand_for(player)[0]
 game.play(player, card)
 ```
+
+## Phase 7: Trump selection
+
+Phase seven makes the deal determine a trump suit by revealing the last card
+dealt, which is used as the default trump for a round.
+
+```python
+from whist import Deal
+
+players = ["North", "East", "South", "West"]
+deal = Deal(players)
+print(deal.trump_suit)
+```
+
+## Phase 8: Full trick helpers
+
+Phase eight adds a helper to play an entire trick in turn order.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+
+plays = {
+    "North": game.round.deal.hand_for("North")[0],
+    "East": game.round.deal.hand_for("East")[0],
+    "South": game.round.deal.hand_for("South")[0],
+    "West": game.round.deal.hand_for("West")[0],
+}
+winner = game.play_trick(plays)
+```
+
+## Phase 9: Round state reporting
+
+Phase nine adds a round state snapshot for UI or logging.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+print(game.state())
+```
+
+## Phase 10: Automated play
+
+Phase ten adds a helper to play a legal card at random for the next player.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+game.play_auto()
+```
+
+## Phase 11: Auto-play a full deal
+
+Phase eleven adds a helper to auto-play the remaining tricks in a deal.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+game.play_out()
+print(game.score())
+```
+
+## Phase 12: Trick history
+
+Phase twelve exposes completed trick summaries for reporting.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+game.play_out()
+print(game.trick_history())
+```
+
+## Phase 13: Display history
+
+Phase thirteen adds a human-readable history summary for completed tricks.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+game.play_out()
+print(game.display_history())
+```
+
+## Phase 14: Trick counts
+
+Phase fourteen exposes per-player trick counts for a completed deal.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+game.play_out()
+print(game.trick_counts())
+```

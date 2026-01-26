@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 
 from .cards import Card, Suit
@@ -26,6 +27,8 @@ class Round:
 
     def __post_init__(self) -> None:
         self.deal = Deal(self.players)
+        if self.trump is None:
+            self.trump = self.deal.trump_suit
         self._set_leader(self.players[0])
 
     def _set_leader(self, leader: str) -> None:
@@ -40,6 +43,8 @@ class Round:
     def play(self, player: str, card: Card) -> str | None:
         """Play a card in order and advance to the next trick if complete."""
 
+        if self.is_complete():
+            raise ValueError("round is already complete")
         if player != self.expected_player():
             raise ValueError("player must act in turn order")
         self.deal.play_card(player, card, self.current_trick)
@@ -55,8 +60,69 @@ class Round:
         self._set_leader(winner)
         return winner
 
+    def play_trick(self, plays: dict[str, Card]) -> str:
+        """Play a full trick from an ordered mapping of player to card."""
+
+        winner: str | None = None
+        for _ in range(len(self.players)):
+            player = self.expected_player()
+            if player not in plays:
+                raise ValueError("plays must include the next player in order")
+            winner = self.play(player, plays[player])
+        if winner is None:
+            raise ValueError("trick did not complete with a winner")
+        return winner
+
+    def play_auto(self, rng: random.Random | None = None) -> str | None:
+        """Play a legal card at random for the expected player."""
+
+        player = self.expected_player()
+        legal = self.deal.legal_moves(player, self.current_trick)
+        if not legal:
+            raise ValueError("no legal moves available")
+        card = (rng or random).choice(legal)
+        return self.play(player, card)
+
+    def play_out(self, rng: random.Random | None = None) -> None:
+        """Play out the remainder of the round automatically."""
+
+        while not self.is_complete():
+            self.play_auto(rng)
+
     def is_complete(self) -> bool:
         return len(self.completed_tricks) >= TRICKS_PER_DEAL
 
     def score(self) -> dict[str, int]:
         return self.deal.partnership_points()
+
+    def trick_counts(self) -> dict[str, int]:
+        return self.deal.trick_counts()
+
+    def state(self) -> dict[str, object]:
+        """Return a snapshot of round progress for UI or logging."""
+
+        return {
+            "leader": self._leader,
+            "next_player": self.expected_player(),
+            "tricks_played": len(self.completed_tricks),
+            "tricks_remaining": TRICKS_PER_DEAL - len(self.completed_tricks),
+            "trump": self.trump,
+        }
+
+    def trick_history(self) -> list[dict[str, object]]:
+        """Return summaries of completed tricks."""
+
+        return [
+            {"winner": trick.winner(self.trump), "plays": trick.summary()}
+            for trick in self.completed_tricks
+        ]
+
+    def display_history(self) -> list[str]:
+        """Return human-readable summaries for completed tricks."""
+
+        return [
+            f"{index + 1}. {winner}: "
+            + ", ".join(f"{player} {card.display()}" for player, card in trick.plays)
+            for index, trick in enumerate(self.completed_tricks)
+            for winner in [trick.winner(self.trump)]
+        ]

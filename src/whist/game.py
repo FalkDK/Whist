@@ -19,21 +19,40 @@ class Deal:
     deck: Deck = field(default_factory=Deck)
     hands: dict[str, list[Card]] = field(init=False)
     scoreboard: Scoreboard = field(init=False)
+    trump_card: Card | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         if len(self.players) != 4:
             raise ValueError("Whist expects four players")
         self.deck.shuffle()
-        self.hands = {
-            player: self.deck.deal(13) for player in self.players
-        }
+        self.hands = self._deal_hands()
         self.scoreboard = Scoreboard(self.players)
+
+    def _deal_hands(self) -> dict[str, list[Card]]:
+        hands = {player: [] for player in self.players}
+        last_card: Card | None = None
+        for _ in range(13):
+            for player in self.players:
+                card = self.deck.deal(1)[0]
+                hands[player].append(card)
+                last_card = card
+        self.trump_card = last_card
+        if self.deck.remaining() != 0:
+            raise ValueError("deck should be empty after dealing")
+        return hands
+
+    @property
+    def trump_suit(self) -> Suit | None:
+        return self.trump_card.suit if self.trump_card else None
 
     def record_trick(self, winner: str) -> None:
         self.scoreboard.record_trick(winner)
 
     def partnership_points(self) -> dict[str, int]:
         return self.scoreboard.partnership_points()
+
+    def trick_counts(self) -> dict[str, int]:
+        return dict(self.scoreboard.trick_counts)
 
     def hand_for(self, player: str) -> Iterable[Card]:
         if player not in self.hands:
@@ -54,3 +73,15 @@ class Deal:
                 raise ValueError("must follow suit if possible")
         hand.remove(card)
         trick.add_play(player, card)
+
+    def legal_moves(self, player: str, trick: Trick) -> list[Card]:
+        """Return the legal cards a player may play for the given trick."""
+
+        if player not in self.hands:
+            raise ValueError("player must be part of the deal")
+        hand = list(self.hands[player])
+        lead_suit = trick.lead_suit()
+        if lead_suit is None:
+            return hand
+        suited_cards = [card for card in hand if card.suit == lead_suit]
+        return suited_cards if suited_cards else hand

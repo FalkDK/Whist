@@ -33,6 +33,10 @@ class Rank(str, Enum):
     ACE = "A"
 
     @classmethod
+    def short_name(cls, rank: "Rank") -> str:
+        return rank.value
+
+    @classmethod
     def ordered(cls) -> list["Rank"]:
         return [
             cls.TWO,
@@ -64,3 +68,6 @@ class Card:
 
     def label(self) -> str:
         return f"{self.rank.value}{self.suit.value[0].upper()}"
+
+    def display(self) -> str:
+        return f"{self.rank.value} of {self.suit.value}"

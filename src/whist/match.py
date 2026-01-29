@@ -54,3 +54,8 @@ class Game:
 
     def display_history(self) -> list[str]:
         return self.round.display_history()
+
+    def summary(self) -> dict[str, object]:
+        if not self.is_complete():
+            raise ValueError("game is not complete")
+        return self.round.summary()

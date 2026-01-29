@@ -126,3 +126,13 @@ class Round:
             for index, trick in enumerate(self.completed_tricks)
             for winner in [trick.winner(self.trump)]
         ]
+
+    def summary(self) -> dict[str, object]:
+        """Return a summary of the round outcome."""
+
+        return {
+            "score": self.score(),
+            "trick_counts": self.trick_counts(),
+            "trump": self.trump,
+            "tricks_played": len(self.completed_tricks),
+        }

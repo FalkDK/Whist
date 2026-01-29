@@ -221,3 +221,17 @@ players = ["North", "East", "South", "West"]
 deal = Deal(players)
 print(deal.sorted_hand_for("North"))
 ```
+
+## Phase 16: Game summary
+
+Phase sixteen provides a summary of a completed game, including scores and trick
+counts.
+
+```python
+from whist import Game
+
+players = ["North", "East", "South", "West"]
+game = Game(players)
+game.play_out()
+print(game.summary())
+```

@@ -1,24 +1,60 @@
-"""High-level game loop for a single Whist deal."""
+"""High-level game loop for a single Bid Whist deal."""
 
 from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
 
-from .cards import Card, Suit
-from .round import Round
+from .bidding import Bid
+from .cards import Card, Direction, Suit
+from .round import Phase, Round
 
 
 @dataclass
 class Game:
-    """Coordinates a single Whist deal from first lead to final score."""
+    """Coordinates a single Bid Whist deal through bidding, kitty, and play."""
 
     players: list[str]
-    trump: Suit | None = None
+    dealer_index: int = 0
     round: Round = field(init=False)
 
     def __post_init__(self) -> None:
-        self.round = Round(self.players, trump=self.trump)
+        self.round = Round(self.players, dealer_index=self.dealer_index)
+
+    # --- Phase queries ---
+
+    @property
+    def phase(self) -> Phase:
+        return self.round.phase
+
+    # --- Bidding ---
+
+    def expected_bidder(self) -> str | None:
+        return self.round.expected_bidder()
+
+    def place_bid(self, player: str, bid: Bid | None) -> None:
+        self.round.place_bid(player, bid)
+
+    @property
+    def winning_bid(self) -> Bid | None:
+        return self.round.winning_bid
+
+    @property
+    def bid_winner(self) -> str | None:
+        return self.round.bid_winner
+
+    # --- Kitty exchange ---
+
+    def set_trump_and_exchange(
+        self,
+        player: str,
+        trump_suit: Suit | None,
+        direction: Direction,
+        discards: list[Card],
+    ) -> None:
+        self.round.set_trump_and_exchange(player, trump_suit, direction, discards)
+
+    # --- Play ---
 
     def expected_player(self) -> str:
         return self.round.expected_player()

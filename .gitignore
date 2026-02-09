@@ -1,3 +1,6 @@
 __pycache__/
 *.egg-info/
 .pytest_cache/
+node_modules/
+.next/
+frontend/.env.local

@@ -2,68 +2,64 @@
 
 import pytest
 
-from whist.cards import Card, Rank, Suit
+from whist.cards import BIG_JOKER, LITTLE_JOKER, Card, Direction, Rank, Suit
 
 
 class TestSuit:
-    def test_suits_have_four_members(self):
-        assert len(Suit) == 4
+    def test_suits_have_five_members(self):
+        assert len(Suit) == 5
 
-    def test_suit_values(self):
+    def test_standard_suit_values(self):
         assert Suit.CLUBS.value == "clubs"
-        assert Suit.DIAMONDS.value == "diamonds"
-        assert Suit.HEARTS.value == "hearts"
         assert Suit.SPADES.value == "spades"
+        assert Suit.JOKER.value == "joker"
 
 
 class TestRank:
-    def test_ranks_have_thirteen_members(self):
-        assert len(Rank) == 13
+    def test_ordered_returns_thirteen(self):
+        assert len(Rank.ordered()) == 13
 
-    def test_ordered_returns_all_ranks_low_to_high(self):
-        ordered = Rank.ordered()
-        assert len(ordered) == 13
-        assert ordered[0] == Rank.TWO
-        assert ordered[-1] == Rank.ACE
-
-    def test_strength_increases_from_two_to_ace(self):
+    def test_uptown_strength(self):
         assert Rank.strength(Rank.TWO) < Rank.strength(Rank.ACE)
-        assert Rank.strength(Rank.JACK) < Rank.strength(Rank.QUEEN)
-        assert Rank.strength(Rank.QUEEN) < Rank.strength(Rank.KING)
-        assert Rank.strength(Rank.KING) < Rank.strength(Rank.ACE)
 
-    def test_short_name(self):
-        assert Rank.short_name(Rank.ACE) == "A"
-        assert Rank.short_name(Rank.TEN) == "10"
-        assert Rank.short_name(Rank.TWO) == "2"
+    def test_downtown_strength(self):
+        assert Rank.strength(Rank.ACE, downtown=True) < Rank.strength(Rank.TWO, downtown=True)
+        assert Rank.strength(Rank.QUEEN, downtown=True) < Rank.strength(Rank.KING, downtown=True)
+
+    def test_joker_strength_always_highest(self):
+        assert Rank.strength(Rank.BIG_JOKER) > Rank.strength(Rank.ACE)
+        assert Rank.strength(Rank.BIG_JOKER) > Rank.strength(Rank.LITTLE_JOKER)
+        assert Rank.strength(Rank.BIG_JOKER, downtown=True) > Rank.strength(Rank.KING, downtown=True)
 
 
 class TestCard:
-    def test_card_is_immutable(self):
+    def test_immutable(self):
         card = Card(rank=Rank.ACE, suit=Suit.SPADES)
         with pytest.raises(AttributeError):
             card.rank = Rank.KING
 
     def test_label(self):
-        card = Card(rank=Rank.ACE, suit=Suit.SPADES)
-        assert card.label() == "AS"
+        assert Card(Rank.ACE, Suit.SPADES).label() == "AS"
 
-    def test_display(self):
-        card = Card(rank=Rank.QUEEN, suit=Suit.HEARTS)
-        assert card.display() == "Q of hearts"
+    def test_joker_label(self):
+        assert BIG_JOKER.label() == "BJ"
+        assert LITTLE_JOKER.label() == "LJ"
+
+    def test_joker_display(self):
+        assert BIG_JOKER.display() == "Big Joker"
+
+    def test_is_joker(self):
+        assert BIG_JOKER.is_joker
+        assert not Card(Rank.ACE, Suit.SPADES).is_joker
 
     def test_equality(self):
-        a = Card(rank=Rank.FIVE, suit=Suit.CLUBS)
-        b = Card(rank=Rank.FIVE, suit=Suit.CLUBS)
-        assert a == b
+        assert Card(Rank.FIVE, Suit.CLUBS) == Card(Rank.FIVE, Suit.CLUBS)
 
-    def test_inequality(self):
-        a = Card(rank=Rank.FIVE, suit=Suit.CLUBS)
-        b = Card(rank=Rank.SIX, suit=Suit.CLUBS)
-        assert a != b
+    def test_hashable(self):
+        assert len({BIG_JOKER, BIG_JOKER}) == 1
 
-    def test_card_is_hashable(self):
-        card = Card(rank=Rank.ACE, suit=Suit.SPADES)
-        assert isinstance(hash(card), int)
-        s = {card, card}
-        assert len(s) == 1
+
+class TestDirection:
+    def test_values(self):
+        assert Direction.UPTOWN.value == "uptown"
+        assert Direction.DOWNTOWN.value == "downtown"

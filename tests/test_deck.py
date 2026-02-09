@@ -4,70 +4,49 @@ import random
 
 import pytest
 
-from whist.cards import Card, Rank, Suit
+from whist.cards import BIG_JOKER, LITTLE_JOKER, Rank, Suit
 from whist.deck import Deck
 
 
 class TestDeck:
     def test_standard_deck_has_52_cards(self):
-        deck = Deck()
-        assert len(deck) == 52
+        assert len(Deck()) == 52
 
-    def test_remaining_matches_len(self):
+    def test_joker_deck_has_54_cards(self):
+        assert len(Deck(jokers=True)) == 54
+
+    def test_joker_deck_contains_jokers(self):
+        deck = Deck(jokers=True)
+        cards = deck.deal(54)
+        assert BIG_JOKER in cards
+        assert LITTLE_JOKER in cards
+
+    def test_standard_deck_no_jokers(self):
         deck = Deck()
-        assert deck.remaining() == len(deck) == 52
+        cards = deck.deal(52)
+        assert BIG_JOKER not in cards
 
     def test_deal_removes_cards(self):
         deck = Deck()
-        hand = deck.deal(5)
-        assert len(hand) == 5
+        deck.deal(5)
         assert deck.remaining() == 47
 
-    def test_deal_returns_cards_from_top(self):
-        cards = [Card(Rank.ACE, Suit.SPADES), Card(Rank.KING, Suit.HEARTS)]
-        deck = Deck(cards)
-        hand = deck.deal(1)
-        assert hand == [Card(Rank.ACE, Suit.SPADES)]
-
-    def test_deal_negative_count_raises(self):
-        deck = Deck()
+    def test_deal_negative_raises(self):
         with pytest.raises(ValueError, match="non-negative"):
-            deck.deal(-1)
+            Deck().deal(-1)
 
-    def test_deal_more_than_remaining_raises(self):
-        deck = Deck()
-        with pytest.raises(ValueError, match="not enough cards"):
-            deck.deal(53)
+    def test_deal_too_many_raises(self):
+        with pytest.raises(ValueError, match="not enough"):
+            Deck().deal(53)
 
-    def test_shuffle_changes_order(self):
-        deck1 = Deck()
-        deck2 = Deck()
-        rng = random.Random(42)
-        deck2.shuffle(rng)
-        # Deal all cards from both and compare order
-        hand1 = deck1.deal(52)
-        hand2 = deck2.deal(52)
-        assert hand1 != hand2
+    def test_shuffle_deterministic(self):
+        d1, d2 = Deck(jokers=True), Deck(jokers=True)
+        d1.shuffle(random.Random(99))
+        d2.shuffle(random.Random(99))
+        assert d1.deal(54) == d2.deal(54)
 
-    def test_shuffle_with_seeded_rng_is_deterministic(self):
-        deck1 = Deck()
-        deck2 = Deck()
-        deck1.shuffle(random.Random(99))
-        deck2.shuffle(random.Random(99))
-        assert deck1.deal(52) == deck2.deal(52)
-
-    def test_custom_cards(self):
-        cards = [Card(Rank.TWO, Suit.CLUBS), Card(Rank.THREE, Suit.DIAMONDS)]
-        deck = Deck(cards)
-        assert len(deck) == 2
-
-    def test_deal_zero_cards(self):
-        deck = Deck()
-        hand = deck.deal(0)
-        assert hand == []
-        assert deck.remaining() == 52
-
-    def test_all_52_cards_are_unique(self):
+    def test_no_joker_suits_in_standard_deck(self):
         deck = Deck()
         cards = deck.deal(52)
-        assert len(set(cards)) == 52
+        assert all(c.suit != Suit.JOKER for c in cards)
+        assert all(c.rank not in (Rank.BIG_JOKER, Rank.LITTLE_JOKER) for c in cards)

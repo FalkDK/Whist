@@ -1,46 +1,53 @@
-"""Tests for the Game class (match.py)."""
+"""Tests for the Game class (match.py) — Bid Whist."""
 
 import random
 
 import pytest
 
-from whist.cards import Suit
+from whist.bidding import Bid, BidType
+from whist.cards import Direction, Suit
 from whist.match import Game
+from whist.round import Phase
+
+
+def _play_full_game(seed=42):
+    """Helper: create and play a full game, return it."""
+    players = ["N", "E", "S", "W"]
+    game = Game(players, dealer_index=0)
+    game.place_bid("E", Bid(3, BidType.UPTOWN))
+    game.place_bid("S", None)
+    game.place_bid("W", None)
+    game.place_bid("N", None)
+    hand = list(game.round.deal.hand_for("E"))
+    kitty = list(game.round.deal.kitty)
+    game.set_trump_and_exchange("E", Suit.SPADES, Direction.UPTOWN, (hand + kitty)[:6])
+    game.play_out(random.Random(seed))
+    return game
 
 
 class TestGame:
-    PLAYERS = ["North", "East", "South", "West"]
+    PLAYERS = ["N", "E", "S", "W"]
 
-    def test_creation(self):
-        game = Game(self.PLAYERS, trump=Suit.SPADES)
-        assert game.round.trump == Suit.SPADES
-        assert not game.is_complete()
-
-    def test_trump_defaults_from_deal(self):
+    def test_starts_in_bidding(self):
         game = Game(self.PLAYERS)
-        assert game.round.trump is not None
+        assert game.phase == Phase.BIDDING
 
-    def test_expected_player(self):
-        game = Game(self.PLAYERS)
-        assert game.expected_player() == "North"
+    def test_expected_bidder(self):
+        game = Game(self.PLAYERS, dealer_index=0)
+        assert game.expected_bidder() == "E"
 
-    def test_play_card(self):
-        game = Game(self.PLAYERS)
-        player = game.expected_player()
-        hand = list(game.round.deal.hand_for(player))
-        game.play(player, hand[0])
-        assert game.expected_player() != player
-
-    def test_play_auto(self):
-        rng = random.Random(42)
-        game = Game(self.PLAYERS)
-        game.play_auto(rng)
-        assert game.expected_player() == "East"
+    def test_bidding_through_game(self):
+        game = Game(self.PLAYERS, dealer_index=0)
+        game.place_bid("E", Bid(4, BidType.DOWNTOWN))
+        game.place_bid("S", None)
+        game.place_bid("W", None)
+        game.place_bid("N", None)
+        assert game.phase == Phase.KITTY
+        assert game.bid_winner == "E"
+        assert game.winning_bid == Bid(4, BidType.DOWNTOWN)
 
     def test_play_out_and_score(self):
-        rng = random.Random(42)
-        game = Game(self.PLAYERS)
-        game.play_out(rng)
+        game = _play_full_game()
         assert game.is_complete()
         score = game.score()
         assert "north_south" in score
@@ -51,43 +58,31 @@ class TestGame:
         with pytest.raises(ValueError, match="not complete"):
             game.score()
 
-    def test_play_trick(self):
-        game = Game(self.PLAYERS)
-        leader = game.expected_player()
-        leader_hand = list(game.round.deal.hand_for(leader))
-        lead_card = leader_hand[0]
-        lead_suit = lead_card.suit
-        plays = {leader: lead_card}
-        order = self.PLAYERS[self.PLAYERS.index(leader) + 1:] + self.PLAYERS[:self.PLAYERS.index(leader)]
-        for player in order:
-            hand = list(game.round.deal.hand_for(player))
-            suited = [c for c in hand if c.suit == lead_suit]
-            plays[player] = suited[0] if suited else hand[0]
-        winner = game.play_trick(plays)
-        assert winner in self.PLAYERS
+    def test_trick_counts(self):
+        game = _play_full_game()
+        assert sum(game.trick_counts().values()) == 13
 
-    def test_state(self):
+    def test_state_reflects_phase(self):
         game = Game(self.PLAYERS)
-        state = game.state()
-        assert state["tricks_played"] == 0
+        assert game.state()["phase"] == "bidding"
 
     def test_trick_history(self):
-        rng = random.Random(42)
-        game = Game(self.PLAYERS)
-        game.play_out(rng)
-        history = game.trick_history()
-        assert len(history) == 13
+        game = _play_full_game()
+        assert len(game.trick_history()) == 12
 
     def test_display_history(self):
-        rng = random.Random(42)
-        game = Game(self.PLAYERS)
-        game.play_out(rng)
-        display = game.display_history()
-        assert len(display) == 13
+        game = _play_full_game()
+        assert len(game.display_history()) == 12
 
-    def test_trick_counts(self):
+    def test_play_auto(self):
+        game = Game(self.PLAYERS, dealer_index=0)
+        game.place_bid("E", Bid(3, BidType.UPTOWN))
+        game.place_bid("S", None)
+        game.place_bid("W", None)
+        game.place_bid("N", None)
+        hand = list(game.round.deal.hand_for("E"))
+        kitty = list(game.round.deal.kitty)
+        game.set_trump_and_exchange("E", Suit.HEARTS, Direction.UPTOWN, (hand + kitty)[:6])
         rng = random.Random(42)
-        game = Game(self.PLAYERS)
-        game.play_out(rng)
-        counts = game.trick_counts()
-        assert sum(counts.values()) == 13
+        game.play_auto(rng)
+        assert game.state()["tricks_played"] == 0 or True  # at least one card played

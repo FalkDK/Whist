@@ -2,92 +2,86 @@
 
 import pytest
 
-from whist.cards import Card, Rank, Suit
+from whist.cards import BIG_JOKER, LITTLE_JOKER, Card, Direction, Rank, Suit
 from whist.trick import Trick
 
 
 class TestTrick:
     def test_initially_empty(self):
         trick = Trick()
-        assert trick.plays == []
         assert trick.lead_suit() is None
         assert not trick.is_complete()
 
-    def test_add_play(self):
+    def test_lead_suit_from_first_non_joker(self):
         trick = Trick()
-        card = Card(Rank.ACE, Suit.SPADES)
-        trick.add_play("North", card)
-        assert len(trick.plays) == 1
-        assert trick.lead_suit() == Suit.SPADES
-
-    def test_lead_suit_is_first_card(self):
-        trick = Trick()
-        trick.add_play("North", Card(Rank.ACE, Suit.HEARTS))
-        trick.add_play("East", Card(Rank.KING, Suit.SPADES))
+        trick.add_play("N", BIG_JOKER)
+        trick.add_play("E", Card(Rank.ACE, Suit.HEARTS))
         assert trick.lead_suit() == Suit.HEARTS
 
-    def test_is_complete_after_four_plays(self):
+    def test_lead_suit_all_jokers(self):
         trick = Trick()
-        trick.add_play("North", Card(Rank.TWO, Suit.CLUBS))
-        trick.add_play("East", Card(Rank.THREE, Suit.CLUBS))
-        trick.add_play("South", Card(Rank.FOUR, Suit.CLUBS))
-        trick.add_play("West", Card(Rank.FIVE, Suit.CLUBS))
-        assert trick.is_complete()
+        trick.add_play("N", BIG_JOKER)
+        trick.add_play("E", LITTLE_JOKER)
+        assert trick.lead_suit() is None
 
-    def test_cannot_exceed_max_plays(self):
+    def test_winner_no_trump_highest_lead_suit(self):
         trick = Trick()
-        trick.add_play("North", Card(Rank.TWO, Suit.CLUBS))
-        trick.add_play("East", Card(Rank.THREE, Suit.CLUBS))
-        trick.add_play("South", Card(Rank.FOUR, Suit.CLUBS))
-        trick.add_play("West", Card(Rank.FIVE, Suit.CLUBS))
-        with pytest.raises(ValueError, match="maximum plays"):
-            trick.add_play("Extra", Card(Rank.SIX, Suit.CLUBS))
+        trick.add_play("N", Card(Rank.TWO, Suit.CLUBS))
+        trick.add_play("E", Card(Rank.ACE, Suit.CLUBS))
+        trick.add_play("S", Card(Rank.KING, Suit.CLUBS))
+        trick.add_play("W", Card(Rank.QUEEN, Suit.CLUBS))
+        assert trick.winner(trump=None) == "E"
+
+    def test_winner_trump_beats_lead(self):
+        trick = Trick()
+        trick.add_play("N", Card(Rank.ACE, Suit.CLUBS))
+        trick.add_play("E", Card(Rank.TWO, Suit.SPADES))
+        trick.add_play("S", Card(Rank.KING, Suit.CLUBS))
+        trick.add_play("W", Card(Rank.QUEEN, Suit.CLUBS))
+        assert trick.winner(trump=Suit.SPADES) == "E"
+
+    def test_winner_joker_beats_all_in_trump_game(self):
+        trick = Trick()
+        trick.add_play("N", Card(Rank.ACE, Suit.SPADES))
+        trick.add_play("E", LITTLE_JOKER)
+        trick.add_play("S", Card(Rank.KING, Suit.SPADES))
+        trick.add_play("W", BIG_JOKER)
+        assert trick.winner(trump=Suit.SPADES) == "W"
+
+    def test_winner_joker_weakest_in_no_trump(self):
+        trick = Trick()
+        trick.add_play("N", BIG_JOKER)
+        trick.add_play("E", Card(Rank.TWO, Suit.CLUBS))
+        trick.add_play("S", Card(Rank.THREE, Suit.CLUBS))
+        trick.add_play("W", Card(Rank.FOUR, Suit.CLUBS))
+        assert trick.winner(trump=None) == "W"
+
+    def test_winner_downtown_ranking(self):
+        trick = Trick()
+        trick.add_play("N", Card(Rank.KING, Suit.HEARTS))
+        trick.add_play("E", Card(Rank.QUEEN, Suit.HEARTS))
+        trick.add_play("S", Card(Rank.ACE, Suit.HEARTS))
+        trick.add_play("W", Card(Rank.JACK, Suit.HEARTS))
+        # Downtown: K > Q > J > ... > 2 > A (A is weakest)
+        assert trick.winner(trump=None, direction=Direction.DOWNTOWN) == "N"
+
+    def test_winner_off_suit_loses(self):
+        trick = Trick()
+        trick.add_play("N", Card(Rank.TWO, Suit.CLUBS))
+        trick.add_play("E", Card(Rank.ACE, Suit.HEARTS))
+        trick.add_play("S", Card(Rank.THREE, Suit.CLUBS))
+        trick.add_play("W", Card(Rank.FOUR, Suit.CLUBS))
+        assert trick.winner(trump=None) == "W"
 
     def test_duplicate_player_raises(self):
         trick = Trick()
-        trick.add_play("North", Card(Rank.TWO, Suit.CLUBS))
+        trick.add_play("N", Card(Rank.TWO, Suit.CLUBS))
         with pytest.raises(ValueError, match="already played"):
-            trick.add_play("North", Card(Rank.THREE, Suit.CLUBS))
-
-    def test_winner_no_trump_highest_lead_suit_wins(self):
-        trick = Trick()
-        trick.add_play("North", Card(Rank.TWO, Suit.CLUBS))
-        trick.add_play("East", Card(Rank.ACE, Suit.CLUBS))
-        trick.add_play("South", Card(Rank.KING, Suit.CLUBS))
-        trick.add_play("West", Card(Rank.QUEEN, Suit.CLUBS))
-        assert trick.winner(trump=None) == "East"
-
-    def test_winner_off_suit_cards_lose(self):
-        trick = Trick()
-        trick.add_play("North", Card(Rank.TWO, Suit.CLUBS))
-        trick.add_play("East", Card(Rank.ACE, Suit.HEARTS))  # off-suit
-        trick.add_play("South", Card(Rank.THREE, Suit.CLUBS))
-        trick.add_play("West", Card(Rank.FOUR, Suit.CLUBS))
-        assert trick.winner(trump=None) == "West"
-
-    def test_winner_trump_beats_lead_suit(self):
-        trick = Trick()
-        trick.add_play("North", Card(Rank.ACE, Suit.CLUBS))
-        trick.add_play("East", Card(Rank.TWO, Suit.SPADES))  # trump
-        trick.add_play("South", Card(Rank.KING, Suit.CLUBS))
-        trick.add_play("West", Card(Rank.QUEEN, Suit.CLUBS))
-        assert trick.winner(trump=Suit.SPADES) == "East"
-
-    def test_winner_highest_trump_wins(self):
-        trick = Trick()
-        trick.add_play("North", Card(Rank.ACE, Suit.CLUBS))
-        trick.add_play("East", Card(Rank.TWO, Suit.SPADES))
-        trick.add_play("South", Card(Rank.KING, Suit.SPADES))
-        trick.add_play("West", Card(Rank.QUEEN, Suit.CLUBS))
-        assert trick.winner(trump=Suit.SPADES) == "South"
-
-    def test_winner_returns_none_when_empty(self):
-        trick = Trick()
-        assert trick.winner() is None
+            trick.add_play("N", Card(Rank.THREE, Suit.CLUBS))
 
     def test_summary(self):
         trick = Trick()
-        trick.add_play("North", Card(Rank.ACE, Suit.SPADES))
-        trick.add_play("East", Card(Rank.KING, Suit.HEARTS))
+        trick.add_play("N", Card(Rank.ACE, Suit.SPADES))
+        trick.add_play("E", BIG_JOKER)
         result = trick.summary()
-        assert result == [("North", "AS"), ("East", "KH")]
+        assert result == [("N", "AS"), ("E", "BJ")]

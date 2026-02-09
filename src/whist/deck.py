@@ -5,18 +5,23 @@ from __future__ import annotations
 import random
 from collections.abc import Iterable
 
-from .cards import Card, Rank, Suit
+from .cards import Card, Rank, Suit, BIG_JOKER, LITTLE_JOKER
 
 
 class Deck:
-    """Represents a standard 52-card deck."""
+    """Represents a standard 52 or 54-card deck."""
 
-    def __init__(self, cards: Iterable[Card] | None = None) -> None:
-        self._cards = list(cards) if cards is not None else self._standard_cards()
+    def __init__(self, cards: Iterable[Card] | None = None, *, jokers: bool = False) -> None:
+        self._cards = list(cards) if cards is not None else self._standard_cards(jokers=jokers)
 
     @staticmethod
-    def _standard_cards() -> list[Card]:
-        return [Card(rank=rank, suit=suit) for suit in Suit for rank in Rank]
+    def _standard_cards(jokers: bool = False) -> list[Card]:
+        suits = [s for s in Suit if s != Suit.JOKER]
+        ranks = [r for r in Rank if r not in (Rank.BIG_JOKER, Rank.LITTLE_JOKER)]
+        cards = [Card(rank=rank, suit=suit) for suit in suits for rank in ranks]
+        if jokers:
+            cards.extend([BIG_JOKER, LITTLE_JOKER])
+        return cards
 
     def shuffle(self, rng: random.Random | None = None) -> None:
         """Shuffle the deck in place."""

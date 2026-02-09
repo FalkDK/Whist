@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@/lib/types";
-import { cardDisplay, cardKey, cardsEqual, suitColor } from "@/lib/cards";
+import { cardKey, cardsEqual, suitColor, suitSymbol, isJoker } from "@/lib/cards";
 
 interface Props {
   cards: Card[];
@@ -12,6 +12,9 @@ interface Props {
 
 export default function PlayerHand({ cards, legalMoves, isMyTurn, onPlay }: Props) {
   const sortedCards = [...cards].sort((a, b) => {
+    if (isJoker(a) && !isJoker(b)) return -1;
+    if (!isJoker(a) && isJoker(b)) return 1;
+    if (isJoker(a) && isJoker(b)) return a.rank === "Big Joker" ? -1 : 1;
     const suitOrder = ["spades", "hearts", "diamonds", "clubs"];
     const rankOrder = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
     const sd = suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
@@ -45,8 +48,12 @@ export default function PlayerHand({ cards, legalMoves, isMyTurn, onPlay }: Prop
               }
             `}
           >
-            <span className="text-xs leading-none">{card.rank}</span>
-            <span className="text-xl leading-none">{cardDisplay(card).slice(-1)}</span>
+            <span className="text-xs leading-none">
+              {isJoker(card) ? (card.rank === "Big Joker" ? "BJ" : "LJ") : card.rank}
+            </span>
+            <span className="text-xl leading-none">
+              {isJoker(card) ? "\u2605" : suitSymbol(card.suit)}
+            </span>
           </button>
         );
       })}

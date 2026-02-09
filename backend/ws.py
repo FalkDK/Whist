@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from whist import Card, Rank, Suit
+from whist import Bid, BidType, Card, Direction, Phase, Rank, Suit
 
 from .auth import ws_authenticate
 from .game_manager import ActiveGame, GameManager, _serialize_card
@@ -34,9 +34,43 @@ async def send_personal_states(active: ActiveGame) -> None:
             active.subscribers.pop(username, None)
 
 
+async def handle_bot_bids(active: ActiveGame) -> None:
+    """Auto-bid for consecutive bots with delays."""
+    bot_bids = active.auto_play_bot_bids()
+    for seat, bid in bot_bids:
+        await asyncio.sleep(0.6)
+        display_name = active._display_name(seat)
+        bid_data = None
+        if bid:
+            bid_data = {"number": bid.number, "bid_type": bid.bid_type.value}
+        await broadcast(active, {
+            "type": "bid_placed",
+            "data": {"player": display_name, "bid": bid_data},
+        })
+        await send_personal_states(active)
+
+
+async def handle_bot_kitty(active: ActiveGame) -> None:
+    """Auto-exchange kitty if bid winner is a bot."""
+    result = active.auto_play_bot_kitty()
+    if result:
+        seat, trump, direction = result
+        await asyncio.sleep(0.8)
+        display_name = active._display_name(seat)
+        await broadcast(active, {
+            "type": "kitty_exchanged",
+            "data": {
+                "player": display_name,
+                "trump_suit": trump.value if trump else None,
+                "direction": direction.value,
+            },
+        })
+        await send_personal_states(active)
+
+
 async def handle_bot_plays(active: ActiveGame) -> None:
     """Auto-play consecutive bots with delays for animation."""
-    bot_plays = active.auto_play_bots()
+    bot_plays = active.auto_play_bot_cards()
     for seat, card, trick_winner in bot_plays:
         await asyncio.sleep(0.6)
         display_name = active._display_name(seat)
@@ -65,6 +99,23 @@ async def handle_bot_plays(active: ActiveGame) -> None:
         })
 
 
+async def auto_advance_bots(active: ActiveGame) -> None:
+    """Run through all bot actions for the current phase."""
+    phase = active.current_game.phase
+    if phase == Phase.BIDDING:
+        await handle_bot_bids(active)
+        if active.current_game.phase == Phase.KITTY:
+            await handle_bot_kitty(active)
+            if active.current_game.phase == Phase.PLAYING:
+                await handle_bot_plays(active)
+    elif phase == Phase.KITTY:
+        await handle_bot_kitty(active)
+        if active.current_game.phase == Phase.PLAYING:
+            await handle_bot_plays(active)
+    elif phase == Phase.PLAYING:
+        await handle_bot_plays(active)
+
+
 async def game_websocket(
     websocket: WebSocket,
     game_id: str,
@@ -91,18 +142,112 @@ async def game_websocket(
     state = active.build_state_for(username)
     await websocket.send_json({"type": "game_state", "data": state.model_dump()})
 
-    # If the first player is a bot, auto-play them now
+    # Auto-advance bots from the current phase
     async with active.lock:
-        if active.current_game.expected_player() in active.bot_seats:
-            await handle_bot_plays(active)
+        await auto_advance_bots(active)
 
     try:
         while True:
             raw = await websocket.receive_json()
             msg_type = raw.get("type")
 
-            if msg_type == "play_card":
+            if msg_type == "place_bid":
                 async with active.lock:
+                    if active.current_game.phase != Phase.BIDDING:
+                        await websocket.send_json({
+                            "type": "error",
+                            "data": {"message": "Not in bidding phase"},
+                        })
+                        continue
+
+                    expected = active.current_game.expected_bidder()
+                    if expected != seat:
+                        await websocket.send_json({
+                            "type": "error",
+                            "data": {"message": "Not your turn to bid"},
+                        })
+                        continue
+
+                    bid_data = raw.get("data", {}).get("bid")
+                    try:
+                        if bid_data:
+                            bid = Bid(bid_data["number"], BidType(bid_data["bid_type"]))
+                        else:
+                            bid = None
+                        active.place_bid(seat, bid)
+                    except ValueError as exc:
+                        await websocket.send_json({
+                            "type": "error",
+                            "data": {"message": str(exc)},
+                        })
+                        continue
+
+                    display_name = active._display_name(seat)
+                    bid_info = None
+                    if bid:
+                        bid_info = {"number": bid.number, "bid_type": bid.bid_type.value}
+                    await broadcast(active, {
+                        "type": "bid_placed",
+                        "data": {"player": display_name, "bid": bid_info},
+                    })
+                    await send_personal_states(active)
+                    await auto_advance_bots(active)
+
+            elif msg_type == "exchange_kitty":
+                async with active.lock:
+                    if active.current_game.phase != Phase.KITTY:
+                        await websocket.send_json({
+                            "type": "error",
+                            "data": {"message": "Not in kitty exchange phase"},
+                        })
+                        continue
+
+                    if active.current_game.bid_winner != seat:
+                        await websocket.send_json({
+                            "type": "error",
+                            "data": {"message": "Only the bid winner can exchange the kitty"},
+                        })
+                        continue
+
+                    data = raw.get("data", {})
+                    try:
+                        trump_val = data.get("trump_suit")
+                        trump_suit = Suit(trump_val) if trump_val else None
+                        direction = Direction(data.get("direction", "uptown"))
+                        discard_data = data.get("discards", [])
+                        discards = [
+                            Card(rank=Rank(d["rank"]), suit=Suit(d["suit"]))
+                            for d in discard_data
+                        ]
+                        active.set_trump_and_exchange(seat, trump_suit, direction, discards)
+                    except (KeyError, ValueError) as exc:
+                        await websocket.send_json({
+                            "type": "error",
+                            "data": {"message": str(exc)},
+                        })
+                        continue
+
+                    display_name = active._display_name(seat)
+                    await broadcast(active, {
+                        "type": "kitty_exchanged",
+                        "data": {
+                            "player": display_name,
+                            "trump_suit": trump_suit.value if trump_suit else None,
+                            "direction": direction.value,
+                        },
+                    })
+                    await send_personal_states(active)
+                    await auto_advance_bots(active)
+
+            elif msg_type == "play_card":
+                async with active.lock:
+                    if active.current_game.phase != Phase.PLAYING:
+                        await websocket.send_json({
+                            "type": "error",
+                            "data": {"message": "Not in playing phase"},
+                        })
+                        continue
+
                     expected = active.current_game.expected_player()
                     if expected != seat:
                         await websocket.send_json({

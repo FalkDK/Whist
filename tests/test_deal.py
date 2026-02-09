@@ -1,133 +1,86 @@
-"""Tests for deal handling (game.py)."""
+"""Tests for deal handling (game.py) — Bid Whist."""
 
 import pytest
 
-from whist.cards import Card, Rank, Suit
-from whist.game import Deal
+from whist.cards import Card, Direction, Rank, Suit
+from whist.game import CARDS_PER_HAND, KITTY_SIZE, Deal
 from whist.trick import Trick
 
 
 class TestDeal:
-    PLAYERS = ["North", "East", "South", "West"]
+    PLAYERS = ["N", "E", "S", "W"]
 
-    def test_deals_13_cards_to_each_player(self):
+    def test_deals_12_cards_each(self):
         deal = Deal(self.PLAYERS)
-        for player in self.PLAYERS:
-            assert len(list(deal.hand_for(player))) == 13
+        for p in self.PLAYERS:
+            assert len(list(deal.hand_for(p))) == CARDS_PER_HAND
 
-    def test_all_52_cards_distributed(self):
+    def test_kitty_has_6_cards(self):
+        deal = Deal(self.PLAYERS)
+        assert len(deal.kitty) == KITTY_SIZE
+
+    def test_all_54_cards_distributed(self):
         deal = Deal(self.PLAYERS)
         all_cards = []
-        for player in self.PLAYERS:
-            all_cards.extend(deal.hand_for(player))
-        assert len(all_cards) == 52
-        assert len(set(all_cards)) == 52
-
-    def test_trump_suit_set_from_last_card(self):
-        deal = Deal(self.PLAYERS)
-        assert deal.trump_suit is not None
-        assert isinstance(deal.trump_suit, Suit)
-        assert deal.trump_card is not None
-        assert deal.trump_card.suit == deal.trump_suit
+        for p in self.PLAYERS:
+            all_cards.extend(deal.hand_for(p))
+        all_cards.extend(deal.kitty)
+        assert len(all_cards) == 54
+        assert len(set(all_cards)) == 54
 
     def test_requires_four_players(self):
-        with pytest.raises(ValueError, match="four players"):
-            Deal(["A", "B", "C"])
+        with pytest.raises(ValueError):
+            Deal(["A", "B"])
 
-    def test_hand_for_unknown_player_raises(self):
+    def test_exchange_kitty(self):
         deal = Deal(self.PLAYERS)
-        with pytest.raises(ValueError, match="part of the deal"):
-            deal.hand_for("Unknown")
+        hand_before = list(deal.hand_for("N"))
+        kitty = list(deal.kitty)
+        merged = hand_before + kitty
+        discards = merged[:6]
+        deal.exchange_kitty("N", discards)
+        assert len(list(deal.hand_for("N"))) == CARDS_PER_HAND
 
-    def test_play_card_removes_from_hand(self):
+    def test_exchange_kitty_wrong_count_raises(self):
         deal = Deal(self.PLAYERS)
-        hand = list(deal.hand_for("North"))
-        card = hand[0]
+        with pytest.raises(ValueError, match="exactly"):
+            deal.exchange_kitty("N", [])
+
+    def test_exchange_kitty_twice_raises(self):
+        deal = Deal(self.PLAYERS)
+        hand = list(deal.hand_for("N"))
+        kitty = list(deal.kitty)
+        deal.exchange_kitty("N", (hand + kitty)[:6])
+        with pytest.raises(ValueError, match="already exchanged"):
+            deal.exchange_kitty("N", list(deal.hand_for("N"))[:6])
+
+    def test_follow_suit_enforced(self):
+        deal = Deal(self.PLAYERS)
         trick = Trick()
-        deal.play_card("North", card, trick)
-        assert card not in list(deal.hand_for("North"))
+        hand_n = list(deal.hand_for("N"))
+        lead = hand_n[0]
+        deal.play_card("N", lead, trick)
+        lead_suit = lead.suit
 
-    def test_play_card_adds_to_trick(self):
-        deal = Deal(self.PLAYERS)
-        card = list(deal.hand_for("North"))[0]
-        trick = Trick()
-        deal.play_card("North", card, trick)
-        assert len(trick.plays) == 1
-
-    def test_play_card_must_follow_suit(self):
-        deal = Deal(self.PLAYERS)
-        trick = Trick()
-        # Find a card in North's hand, play it as lead
-        north_hand = list(deal.hand_for("North"))
-        lead_card = north_hand[0]
-        deal.play_card("North", lead_card, trick)
-        lead_suit = lead_card.suit
-
-        # East must follow suit if they can
-        east_hand = list(deal.hand_for("East"))
-        suited = [c for c in east_hand if c.suit == lead_suit]
-        off_suit = [c for c in east_hand if c.suit != lead_suit]
+        hand_e = list(deal.hand_for("E"))
+        suited = [c for c in hand_e if c.suit == lead_suit and not c.is_joker]
+        off_suit = [c for c in hand_e if c.suit != lead_suit and not c.is_joker]
 
         if suited and off_suit:
             with pytest.raises(ValueError, match="follow suit"):
-                deal.play_card("East", off_suit[0], trick)
+                deal.play_card("E", off_suit[0], trick)
 
-    def test_play_card_not_in_hand_raises(self):
+    def test_legal_moves_all_when_leading(self):
         deal = Deal(self.PLAYERS)
         trick = Trick()
-        # Create a card not in North's hand
-        north_hand = set(deal.hand_for("North"))
-        fake_card = None
-        for rank in Rank:
-            for suit in Suit:
-                c = Card(rank, suit)
-                if c not in north_hand:
-                    fake_card = c
-                    break
-            if fake_card:
-                break
-        with pytest.raises(ValueError, match="in the player's hand"):
-            deal.play_card("North", fake_card, trick)
+        assert len(deal.legal_moves("N", trick)) == CARDS_PER_HAND
 
-    def test_legal_moves_returns_all_when_leading(self):
+    def test_record_trick_first_trick_bonus(self):
         deal = Deal(self.PLAYERS)
-        trick = Trick()
-        legal = deal.legal_moves("North", trick)
-        assert len(legal) == 13
+        deal.record_trick("N", is_first_trick=True)
+        assert deal.trick_counts()["N"] == 2  # 1 trick + 1 kitty bonus
 
-    def test_legal_moves_filters_by_suit(self):
+    def test_record_trick_normal(self):
         deal = Deal(self.PLAYERS)
-        trick = Trick()
-        north_hand = list(deal.hand_for("North"))
-        deal.play_card("North", north_hand[0], trick)
-        lead_suit = north_hand[0].suit
-
-        east_hand = list(deal.hand_for("East"))
-        suited = [c for c in east_hand if c.suit == lead_suit]
-        legal = deal.legal_moves("East", trick)
-
-        if suited:
-            assert all(c.suit == lead_suit for c in legal)
-        else:
-            assert len(legal) == len(east_hand)
-
-    def test_record_trick_and_partnership_points(self):
-        deal = Deal(self.PLAYERS)
-        for _ in range(7):
-            deal.record_trick("North")
-        for _ in range(6):
-            deal.record_trick("East")
-        points = deal.partnership_points()
-        assert points["north_south"] == 1
-        assert points["east_west"] == 0
-
-    def test_trick_counts(self):
-        deal = Deal(self.PLAYERS)
-        deal.record_trick("North")
-        deal.record_trick("North")
-        deal.record_trick("East")
-        counts = deal.trick_counts()
-        assert counts["North"] == 2
-        assert counts["East"] == 1
-        assert counts["South"] == 0
-        assert counts["West"] == 0
+        deal.record_trick("N", is_first_trick=False)
+        assert deal.trick_counts()["N"] == 1

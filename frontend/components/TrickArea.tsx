@@ -1,7 +1,7 @@
 "use client";
 
 import { Play } from "@/lib/types";
-import { cardDisplay, suitColor } from "@/lib/cards";
+import { suitColor, suitSymbol, isJoker } from "@/lib/cards";
 
 interface Props {
   plays: Play[];
@@ -9,12 +9,7 @@ interface Props {
   seat: string;
 }
 
-/**
- * Renders the 4 card positions in the centre of the table.
- * The current user always sits at the "bottom" position.
- */
 export default function TrickArea({ plays, players, seat }: Props) {
-  // Determine relative positions: bottom=me, top=partner, left & right=opponents
   const myIndex = players.indexOf(seat);
   const positions = ["bottom", "left", "top", "right"];
   const seatToPosition: Record<string, string> = {};
@@ -41,8 +36,12 @@ export default function TrickArea({ plays, players, seat }: Props) {
             <div
               className={`w-14 h-20 rounded-lg border-2 border-gray-300 bg-white flex flex-col items-center justify-center font-bold ${suitColor(play.card.suit)}`}
             >
-              <span className="text-xs">{play.card.rank}</span>
-              <span className="text-xl">{cardDisplay(play.card).slice(-1)}</span>
+              <span className="text-xs">
+                {isJoker(play.card) ? (play.card.rank === "Big Joker" ? "BJ" : "LJ") : play.card.rank}
+              </span>
+              <span className="text-xl">
+                {isJoker(play.card) ? "\u2605" : suitSymbol(play.card.suit)}
+              </span>
             </div>
             <span className="block text-center text-xs text-green-200 mt-0.5">
               {play.player}
@@ -52,7 +51,7 @@ export default function TrickArea({ plays, players, seat }: Props) {
       })}
       {plays.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center text-green-400 text-sm">
-          Play a card
+          Play area
         </div>
       )}
     </div>

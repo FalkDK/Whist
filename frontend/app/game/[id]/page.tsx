@@ -12,7 +12,7 @@ export default function GamePage() {
   const gameId = params.id as string;
   const router = useRouter();
   const { token, isAuthenticated } = useAuth();
-  const { gameState, playCard, connected } = useGameState(gameId, token);
+  const { gameState, playCard, placeBid, exchangeKitty, connected } = useGameState(gameId, token);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -43,7 +43,12 @@ export default function GamePage() {
 
   return (
     <>
-      <GameBoard state={gameState} onPlayCard={playCard} />
+      <GameBoard
+        state={gameState}
+        onPlayCard={playCard}
+        onBid={placeBid}
+        onExchangeKitty={exchangeKitty}
+      />
       {gameState.is_complete && (
         <GameOverDialog
           state={gameState}

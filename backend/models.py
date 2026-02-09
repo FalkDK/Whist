@@ -35,22 +35,41 @@ class TrickSchema(BaseModel):
     winner: str | None = None
 
 
+class BidSchema(BaseModel):
+    number: int
+    bid_type: str  # "uptown" | "downtown" | "no_trump"
+
+
 class GameStateSchema(BaseModel):
     game_id: str
+    phase: str  # "bidding" | "kitty" | "playing" | "complete"
     players: list[str]
-    trump_suit: str | None
-    trump_card: CardSchema | None
-    your_hand: list[CardSchema]
-    legal_moves: list[CardSchema]
-    current_trick: list[PlaySchema]
-    expected_player: str
-    tricks_played: int
-    tricks_remaining: int
-    trick_counts: dict[str, int]
-    partnership_scores: dict[str, int]
-    completed_tricks: list[TrickSchema]
-    is_complete: bool
     seat: str
+
+    # Bidding phase
+    expected_bidder: str | None = None
+    bids: dict[str, BidSchema | None] = {}
+    bid_winner: str | None = None
+    winning_bid: BidSchema | None = None
+
+    # Kitty phase / playing phase
+    trump_suit: str | None = None
+    direction: str | None = None
+    kitty: list[CardSchema] = []
+
+    # Hand info (all phases)
+    your_hand: list[CardSchema] = []
+    legal_moves: list[CardSchema] = []
+
+    # Playing phase
+    current_trick: list[PlaySchema] = []
+    expected_player: str | None = None
+    tricks_played: int = 0
+    tricks_remaining: int = 12
+    trick_counts: dict[str, int] = {}
+    partnership_scores: dict[str, int] = {}
+    completed_tricks: list[TrickSchema] = []
+    is_complete: bool = False
 
 
 class LobbyGameSchema(BaseModel):
